@@ -1,18 +1,11 @@
-import { OrderStatus } from '@prisma/client';
 import { Type } from 'class-transformer';
-import { IsEnum, IsInt, IsNumber, IsPositive } from 'class-validator';
+import { ArrayMinSize, IsArray, ValidateNested } from 'class-validator';
+import { OrderItemDto } from './order-item.dto';
 
 export class CreateOrderDto {
-  @IsNumber({ maxDecimalPlaces: 2 })
-  @IsPositive()
-  @Type(() => Number)
-  readonly totalAmount: number;
-
-  @IsInt()
-  @IsPositive()
-  @Type(() => Number)
-  readonly totalItems: number;
-
-  @IsEnum(OrderStatus)
-  status: OrderStatus = OrderStatus.PENDING;
+  @IsArray()
+  @ArrayMinSize(1)
+  @ValidateNested({ each: true })
+  @Type(() => OrderItemDto)
+  readonly items: OrderItemDto[];
 }
