@@ -9,22 +9,22 @@ import { ChangeStatusDto } from './dto/change-status.dto';
 export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}
 
-  @MessagePattern({ cmd: 'createOrder' })
+  @MessagePattern('createOrder')
   create(@Payload() createOrderDto: CreateOrderDto) {
     return this.ordersService.create(createOrderDto);
   }
 
-  @MessagePattern({ cmd: 'findAllOrders' })
+  @MessagePattern('findAllOrders')
   findAll(@Payload() orderPaginationDto: OrderPaginationDto) {
     return this.ordersService.findAll(orderPaginationDto);
   }
 
-  @MessagePattern({ cmd: 'findOneOrder' })
+  @MessagePattern('findOneOrder')
   findOne(@Payload() id: string) {
     return this.ordersService.findOne(id);
   }
 
-  @MessagePattern({ cmd: 'changeStatus' })
+  @MessagePattern('changeStatus')
   changeStatus(@Payload() ChangeStatusDto: ChangeStatusDto) {
     return this.ordersService.changeStatus(ChangeStatusDto);
   }

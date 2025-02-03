@@ -5,17 +5,16 @@ import {
   RpcException,
   Transport,
 } from '@nestjs/microservices';
-import { Logger, ValidationPipe } from '@nestjs/common';
+import { ValidationPipe } from '@nestjs/common';
 import { envs } from './config';
 
 async function bootstrap() {
-  const logger = new Logger('bootstrap');
   const app = await NestFactory.createMicroservice<MicroserviceOptions>(
     AppModule,
     {
-      transport: Transport.TCP,
+      transport: Transport.NATS,
       options: {
-        port: envs.port,
+        servers: envs.nats.servers,
       },
     },
   );
@@ -41,6 +40,5 @@ async function bootstrap() {
   );
 
   await app.listen();
-  logger.log(`Orders service is listening on port ${envs.port}`);
 }
 void bootstrap();
