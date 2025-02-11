@@ -76,8 +76,20 @@ export class OrdersService extends PrismaClient implements OnModuleInit {
         })),
       };
     } catch (error) {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-      throw new RpcException(error);
+      if (error.toString().includes('Empty response')) {
+        return {
+          status: 500,
+          message: error
+            .toString()
+            .substring(0, error.toString().indexOf('(') - 1),
+        };
+      }
+
+      throw new RpcException({
+        message: error,
+        status: 'Bad request',
+        code: 400,
+      });
     }
 
     // return {
@@ -121,42 +133,59 @@ export class OrdersService extends PrismaClient implements OnModuleInit {
   }
 
   async findOne(id: string) {
-    const order = await this.order.findFirst({
-      where: { id },
-      include: {
-        OrderItem: {
-          select: {
-            price: true,
-            quantity: true,
-            productId: true,
+    try {
+      const order = await this.order.findFirst({
+        where: { id },
+        include: {
+          OrderItem: {
+            select: {
+              price: true,
+              quantity: true,
+              productId: true,
+            },
           },
         },
-      },
-    });
-    if (!order) {
+      });
+      if (!order) {
+        throw new RpcException({
+          message: `order #${id} not found`,
+          status: 'Bad request',
+          code: 400,
+        });
+      }
+
+      const productsIds = order.OrderItem.map(
+        (orderItem) => orderItem.productId,
+      );
+
+      const products: Product[] = await firstValueFrom(
+        this.natsClient.send('validateProducts', productsIds),
+      );
+
+      return {
+        ...order,
+        OrderItem: order.OrderItem.map((orderItem) => ({
+          ...orderItem,
+          name: products.find((product) => product.id === orderItem.productId)
+            ?.name,
+        })),
+      };
+    } catch (error) {
+      if (error.toString().includes('Empty response')) {
+        return {
+          status: 500,
+          message: error
+            .toString()
+            .substring(0, error.toString().indexOf('(') - 1),
+        };
+      }
+
       throw new RpcException({
-        message: `order #${id} not found`,
+        message: error,
         status: 'Bad request',
         code: 400,
       });
     }
-
-    const productsIds = order.OrderItem.map((orderItem) => orderItem.productId);
-
-    const products: Product[] = await firstValueFrom(
-      this.natsClient.send('validateProducts', productsIds),
-    );
-
-    return {
-      ...order,
-      OrderItem: order.OrderItem.map((orderItem) => ({
-        ...orderItem,
-        name: products.find((product) => product.id === orderItem.productId)
-          ?.name,
-      })),
-    };
-
-    return order;
   }
 
   async changeStatus(changeStatusDto: ChangeStatusDto) {
