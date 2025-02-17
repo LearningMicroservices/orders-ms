@@ -1,5 +1,5 @@
 import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
-import { Prisma, PrismaClient } from '@prisma/client';
+import { OrderStatus, Prisma, PrismaClient } from '@prisma/client';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { ClientProxy, RpcException } from '@nestjs/microservices';
 import { OrderPaginationDto } from './dto/order-pagination.dto';
@@ -7,6 +7,8 @@ import { ChangeStatusDto } from './dto/change-status.dto';
 import { NATS_SERVICE } from 'src/config/services';
 import { firstValueFrom } from 'rxjs';
 import { Product } from './types/products.types';
+import { OrderWithProducts } from './types/Order-with-Products.types';
+import { PaidOrderDto } from './dto/paid-order.dto';
 
 @Injectable()
 export class OrdersService extends PrismaClient implements OnModuleInit {
@@ -77,12 +79,12 @@ export class OrdersService extends PrismaClient implements OnModuleInit {
       };
     } catch (error) {
       if (error.toString().includes('Empty response')) {
-        return {
+        throw new RpcException({
           status: 500,
           message: error
             .toString()
             .substring(0, error.toString().indexOf('(') - 1),
-        };
+        });
       }
 
       throw new RpcException({
@@ -201,6 +203,60 @@ export class OrdersService extends PrismaClient implements OnModuleInit {
         if (error.code === 'P2025') {
           throw new RpcException({
             message: `Product #${changeStatusDto.id} not found`,
+            status: 'Bad request',
+            code: 400,
+          });
+        }
+      }
+      throw error;
+    }
+  }
+
+  async createPaymentSession(order: OrderWithProducts) {
+    const paymentSession = await firstValueFrom(
+      this.natsClient.send('create.payment.session', {
+        orderId: order.id,
+        currency: 'usd',
+        items: order.OrderItem.map((orderItem) => ({
+          name: orderItem.name,
+          quantity: orderItem.quantity,
+          price: orderItem.price,
+        })),
+      }),
+    ).catch((error) => {
+      if (error instanceof RpcException) {
+        throw error;
+      }
+      throw new RpcException({
+        message: error,
+        status: 'Bad request',
+        code: 400,
+      });
+    });
+
+    return paymentSession;
+  }
+
+  async handlePaymentSucceeded(paidOrderDto: PaidOrderDto) {
+    try {
+      await this.order.update({
+        where: { id: paidOrderDto.orderId },
+        data: {
+          paid: true,
+          status: OrderStatus.PAID,
+          OrderReceipt: {
+            create: {
+              receiptUrl: paidOrderDto.receiptUrl,
+              stripeChargeId: paidOrderDto.stripePaymentId,
+            },
+          },
+        },
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        if (error.code === 'P2025') {
+          throw new RpcException({
+            message: `Product #${paidOrderDto.orderId} not found`,
             status: 'Bad request',
             code: 400,
           });
