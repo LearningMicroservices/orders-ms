@@ -1,5 +1,5 @@
 import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
-import { OrderStatus, Prisma, PrismaClient } from '@prisma/client';
+import { OrderStatus, PrismaClient } from '@prisma/client';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { ClientProxy, RpcException } from '@nestjs/microservices';
 import { OrderPaginationDto } from './dto/order-pagination.dto';
@@ -9,6 +9,7 @@ import { firstValueFrom } from 'rxjs';
 import { Product } from './types/products.types';
 import { OrderWithProducts } from './types/Order-with-Products.types';
 import { PaidOrderDto } from './dto/paid-order.dto';
+import { PrismaClientKnownRequestError } from '@prisma/client/runtime/react-native.js';
 
 @Injectable()
 export class OrdersService extends PrismaClient implements OnModuleInit {
@@ -199,7 +200,7 @@ export class OrdersService extends PrismaClient implements OnModuleInit {
         data: { status },
       });
     } catch (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      if (error instanceof PrismaClientKnownRequestError) {
         if (error.code === 'P2025') {
           throw new RpcException({
             message: `Product #${changeStatusDto.id} not found`,
@@ -253,7 +254,7 @@ export class OrdersService extends PrismaClient implements OnModuleInit {
         },
       });
     } catch (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      if (error instanceof PrismaClientKnownRequestError) {
         if (error.code === 'P2025') {
           throw new RpcException({
             message: `Product #${paidOrderDto.orderId} not found`,
