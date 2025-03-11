@@ -4,14 +4,14 @@ steps:
     args:
       - -c
       - |
-        docker build -t northamerica-south1-docker.pkg.dev/microservices-dev-452315/image-registry/auth-ms -f dockerfile.prod --platform=linux/amd64 --build-arg ORDERS_DATABASE_URL=$$DATABASE_URL .
+        docker build -t northamerica-south1-docker.pkg.dev/microservices-dev-452315/image-registry/orders-ms -f dockerfile.prod --platform=linux/amd64 --build-arg ORDERS_DATABASE_URL=$$DATABASE_URL .
     secretEnv: ['DATABASE_URL']
 
   - name: 'gcr.io/cloud-builders/docker'
     args:
       [
         'push',
-        'northamerica-south1-docker.pkg.dev/microservices-dev-452315/image-registry/auth-ms',
+        'northamerica-south1-docker.pkg.dev/microservices-dev-452315/image-registry/orders-ms',
       ]
 
 availableSecrets:
